@@ -105,7 +105,11 @@ function generate_agents_values(agent_values_generator::Function, simulation::Si
   resize!(agents_list, simulation.number_of_agents)
 
   for agent in 1:simulation.number_of_agents
-    agents_list[agent] = GPUAgent(rand(UInt32), PhysicalAgent(Vec2(0., 0.), Vec2(0., 0.)), agent_values_generator())
+    agents_list[agent] = GPUAgent(
+      rand(UInt32),
+      PhysicalAgent(Vec2(0., 0.), Vec2(0., 0.)),
+      agent_values_generator()
+    )
   end
 
   return agents_list
