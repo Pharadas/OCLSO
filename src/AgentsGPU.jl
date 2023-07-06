@@ -5,8 +5,6 @@ struct Vec2
   y::Float32
 end
 
-abstract type Agent end
-
 abstract type SimulationType end
 
 struct GenericSimulation <: SimulationType
@@ -17,108 +15,214 @@ struct PhysicalSimulation <: SimulationType
   should_use_spatial_hashing::Bool
 end
 
-abstract type AgentType end
-
-struct PhysicalAgent <: AgentType
-  vel::Vec2
-  pos::Vec2
+@enum QueryTypes begin
+  Equality
+  Value
+  Parameter
+  Range
 end
 
-mutable struct GPUAgent
-  id::UInt32
-  agent_type_extension::AgentType
-  user_agent_extension::Agent
+@enum SimExtension begin
+  Generic
+  Physics
 end
 
-julia_to_opencl_types = Dict{Symbol, String}(
-  :Bool => "bool",
+@enum CLTypes begin
+	char
+	char2
+	char3
+	char4
+	char8
+	char16
 
-  :Int8 => "char",
-  :UInt8 => "uchar",
+	uchar
+	uchar2
+	uchar3
+	uchar4
+	uchar8
+	uchar16
 
-  :Int16 => "short",
-  :UInt16 => "ushort",
+	short
+	short2
+	short3
+	short4
+	short8
+	short16
 
-  :Int32 => "int",
-  :Uint32 => "uint",
+	ushort
+	ushort2
+	ushort3
+	ushort4
+	ushort8
+	ushort16
 
-  :Int => "long",
-  :Int64 => "long",
-  :UInt64 => "ulong",
-  :UInt => "ulong",
+	int
+	int2
+	int3
+	int4
+	int8
+	int16
 
-  :Int128 => "long long",
-  :UInt128 => "unsigned long long",
+	uint
+	uint2
+	uint3
+	uint4
+	uint8
+	uint16
 
-  :Float16 => "half",
-  :Float32 => "float",
-  :Float64 => "double"
-)
+	long
+	long2
+	long3
+	long4
+	long8
+	long16
+
+	ulong
+	ulong2
+	ulong3
+	ulong4
+	ulong8
+	ulong16
+
+	float
+	float2
+	float3
+	float4
+	float8
+	float16
+
+	double
+	double2
+	double3
+	double4
+	double8
+	double16
+end
 
 mutable struct Simulation
-  simulation_type::SimulationType
-  opencl_code::String
-  opencl_agent_struct::String
+  sim_details::SimulationType
+  sim_agent_extension::SimExtension
   number_of_agents::UInt
-  julia_agent_struct
+  agent_parameters::Tuple
+  number_of_iterations::Int
+  initial_values::Tuple
 end
 
+function generate_agents()
+  return 
+end
 
-function create_simulation(sim_type::SimulationType, number_of_agents::Int)
-  simulation_struct = Simulation(sim_type, "", "", number_of_agents, undef)
+function create_simulation_object(user_agent_values::Tuple, sim_type::SimulationType, number_of_agents::Int, number_of_iterations::Int)
+  simulation_struct = Simulation(sim_type, Generic, number_of_agents, user_agent_values, number_of_iterations, ())
+
+  if typeof(sim_type) == PhysicalSimulation
+    simulation_struct.sim_agent_extension = Physics
+  end
+
   return simulation_struct
 end
 
-# TODO hacerla de multiple despacho
-# preferiria hacerlo en una macro pero creo que termina siendo mas problema
-function create_GPU_agent(agent_struct::DataType, simulation::Simulation)
-  GPU_agent_struct = "typedef struct __attribute__ ((packed)) AGENT {\nuint id;"
+function simulation_iteration()
 
-  if typeof(simulation.simulation_type) == PhysicalSimulation
-    GPU_agent_struct *= "struct Vec2 vel;"
-    GPU_agent_struct *= "struct Vec2 pos;"
-  end
-
-  for parameter in fieldnames(agent_struct)
-    curr_fieldtype = Symbol(fieldtype(agent_struct, parameter))
-
-    if curr_fieldtype == :Char
-      throw(error("Due to differences between OpenCL and Julia Char should be replaced with Int8"))
-    end
-
-    if !haskey(julia_to_opencl_types, curr_fieldtype)
-      throw(error(string(curr_fieldtype) * " is not a valid OpenCL type"))
-    end
-
-    GPU_agent_struct *= julia_to_opencl_types[curr_fieldtype] * " " * string(parameter) * ";\n"
-  end
-
-  GPU_agent_struct *= "};"
-
-  simulation.opencl_agent_struct = GPU_agent_struct
-  simulation.julia_agent_struct = agent_struct
-  return simulation
 end
 
-function generate_agents_values(agent_values_generator::Function, simulation::Simulation)
-  agents_list::Vector{GPUAgent} = []
-  resize!(agents_list, simulation.number_of_agents)
-
-  for agent in 1:simulation.number_of_agents
-    agents_list[agent] = GPUAgent(
-      rand(UInt32),
-      PhysicalAgent(Vec2(0., 0.), Vec2(0., 0.)),
-      agent_values_generator()
-    )
-  end
-
-  return agents_list
+function is_within_range_of(query::Vector{Pair{QueryTypes, String}})
+  push!(query, Pair(Range::QueryTypes, "range")) # placeholder string
 end
 
-export create_simulation
-export create_GPU_agent
-export generate_agents_values
+function equals(query::Vector{Pair{QueryTypes, String}}, parameter::Symbol)
+  push!(query, Pair(Equality::QueryTypes, "=="))
+  push!(query, Pair(:Parameterr, string(parameter)))
+end
+
+function equals(query::Vector{Pair{QueryTypes, String}}, value)
+  push!(query, Pair(Equality::QueryTypes, "=="))
+  push!(query, Pair(Value::QueryTypes, string(value)))
+end
+
+function equals(query::Vector{Pair{QueryTypes, String}})
+  push!(query, Pair(Equality::QueryTypes, "=="))
+end
+
+function parameter(query::Vector{Pair{QueryTypes, String}}, parameter::Symbol)
+  push!(query, Pair(Parameter::QueryTypes, string(parameter)))
+end
+
+function query_maker()
+  return Vector{Pair{QueryTypes, String}}()
+end
+
+export create_simulation_object
+export CLTypes
 export PhysicalSimulation
-export Agent
+
+export equals, parameter, query_maker
+
+export simulation_iteration
+
+export char
+export char2
+export char3
+export char4
+export char8
+export char16
+export uchar
+export uchar2
+export uchar3
+export uchar4
+export uchar8
+export uchar16
+export short
+export short2
+export short3
+export short4
+export short8
+export short16
+export ushort
+export ushort2
+export ushort3
+export ushort4
+export ushort8
+export ushort16
+export int
+export int2
+export int3
+export int4
+export int8
+export int16
+export uint
+export uint2
+export uint3
+export uint4
+export uint8
+export uint16
+export long
+export long2
+export long3
+export long4
+export long8
+export long16
+export ulong
+export ulong2
+export ulong3
+export ulong4
+export ulong8
+export ulong16
+export float
+export float2
+export float3
+export float4
+export float8
+export float16
+export double
+export double2
+export double3
+export double4
+export double8
+export double16
+
+export QueryTypes
+
+export Vec2
 
 end # module AgentsGPU

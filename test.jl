@@ -1,25 +1,25 @@
 include("./src/AgentsGPU.jl")
 using .AgentsGPU
-
-struct Person <: Agent
-  age::UInt
-end
+using Chain
 
 sim_template = PhysicalSimulation(2, true)
 
-simulation_object = create_simulation(sim_template, 10)
-simulation_object = create_GPU_agent(Person, simulation_object)
-display(simulation_object)
+agent_definition = ((:age, :UInt32), (:state, :UInt32))
+simulation_object = create_simulation_object(agent_definition, sim_template, 100, 1)
 
-function c()
-  return Person(rand(UInt))
+# initialize our values
+age = rand(UInt32, 1)
+state = zeros(UInt32, 1)
+
+simulation_object.initial_values = (age, state)
+
+age_query = @chain query_maker() begin
+  parameter(:age)
+  equals(5)
 end
 
-dump(generate_agents_values(c, simulation_object))
+x = age_query[1][2] * age_query[2][2] * age_query[3][2]
 
-# iteration_function = @iteration_function function iteration()
-#   # :query_agents_by_id
-#   # :run_for_all_agents
-#   # :run_for_all_agents
-# end
+t = Base.unsafe_convert(Cstring, x)
 
+output = ccall((:get_query, "target/release/libmain"), Nothing, (Cstring,), t)
