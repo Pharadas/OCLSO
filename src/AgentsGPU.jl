@@ -1,10 +1,8 @@
 module AgentsGPU
 
-struct Vec2
-  x::Float32
-  y::Float32
-end
+using StaticArrays
 
+abstract type OpenCLOperation end
 abstract type SimulationType end
 
 struct GenericSimulation <: SimulationType
@@ -13,6 +11,12 @@ end
 struct PhysicalSimulation <: SimulationType
   dimensions::UInt
   should_use_spatial_hashing::Bool
+end
+
+@enum OpenCLOperations begin
+  ApplyForce
+  UpdateParameter
+  ExecuteQuery
 end
 
 @enum QueryTypes begin
@@ -99,17 +103,48 @@ end
 	double16
 end
 
+const julia_opencl_type_map = Dict(
+  :Int8 => "char",
+  :Float64 => "double",
+  :Float32 => "float",
+  :Int32 => "int",
+  :Int64 => "long",
+  :Int16 => "short",
+  :UInt8 => "uchar",
+  :UInt32 => "uint",
+  :UInt64 => "ulong",
+  :UInt16 => "ushort"
+)
 mutable struct Simulation
   sim_details::SimulationType
   sim_agent_extension::SimExtension
-  number_of_agents::UInt
-  agent_parameters::Tuple
+  number_of_agents::UInt64
+  agent_parameters::Dict
   number_of_iterations::Int
   initial_values::Tuple
+  opencl_code::String
 end
 
-function generate_agents()
-  return 
+mutable struct Query
+  definition::Vector{Pair{QueryTypes, String}}
+  opencl_function_string::String
+end
+
+mutable struct Operation
+  operation::OpenCLOperation
+  query::Query
+  values
+end
+
+mutable struct Iteration
+  operations::Vector{OpenCLOperation}
+end
+
+mutable struct UpdateParameterOperation <: OpenCLOperation
+  query::Query
+  parameter::Symbol
+  value
+  opencl_code::String
 end
 
 function create_simulation_object(user_agent_values::Tuple, sim_type::SimulationType, number_of_agents::Int, number_of_iterations::Int)
