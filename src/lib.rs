@@ -1,11 +1,15 @@
 extern crate ocl;
-use std::fs;
-use std::slice;
+use std::{fs, collections::HashMap};
 use std::ffi::CStr;
+use std::io::BufReader;
+
+use std::{ptr, slice};
 
 use std::os::raw::c_char;
 
 use ocl::{ProQue, OclPrm};
+
+use std::collections;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -25,10 +29,10 @@ enum CLTypes {
 #[derive(Debug)]
 #[allow(dead_code)]
 enum QueryTypes {
-  Parameter,
-  Equality,
-  Value,
-  Range,
+  Equality = 0,
+  Value = 1,
+  Parameter = 2,
+  Range = 3,
 }
 
 #[allow(dead_code)]
@@ -53,36 +57,45 @@ enum SimExtension {
 }
 
 #[allow(dead_code)]
-#[no_mangle]
-fn get_query(query: *const c_char) {
-    unsafe {println!("we are {:?} up in this bitch (this bitch is rust)", CStr::from_ptr(query).to_str()) };
-
-    // match ocl_type {
-    //     _ => {}
-    // }
+enum OpenCLOperations {
+  ApplyForce = 0,
+  UpdateParameter = 1
 }
 
 #[no_mangle]
-fn trivial(f: i32) -> i32 {
-    let src: String = fs::read_to_string("/home/pharadas/Repos/GPU-accelerated-agents-simulations/AgentsGPU/src/core/opencl_definitions/function_definitions.cl").unwrap();
+fn trivial(src: *const c_char, parameters: &u32, amount_of_parameters: u32) {
+    unsafe {
+        let src = CStr::from_ptr(src).to_str().unwrap().to_owned();
 
-    let pro_que = ProQue::builder()
-        .src(src)
-        .dims(1 << 20)
-        .build().unwrap();
+        let pro_que = ProQue::builder()
+            .src(src)
+            .dims(6)
+            .build().unwrap();
 
-    let buffer = pro_que.create_buffer::<f32>().unwrap();
+        let x: Vec<u32> = slice::from_raw_parts(parameters, amount_of_parameters as usize).to_vec();
 
-    let kernel = pro_que.kernel_builder("add")
-        .arg(&buffer)
-        .arg(10.0f32)
-        .build().unwrap();
+        let buffer = pro_que.buffer_builder().copy_host_slice(&x).build().expect("error building first buffer");
+        let second_buffer = pro_que.buffer_builder().copy_host_slice(&x).build().expect("error building second buffer");
 
-    unsafe { kernel.enq(); }
+        // let context = ocl::builders::ContextBuilder::new().build().unwrap();
 
-    let mut vec = vec![0.0f32; buffer.len()];
-    buffer.read(&mut vec).enq();
+        // let pro_que = ocl::builders::BufferBuilder::new().context(&context);
+        // pro_que.copy_host_slice(&vec![1, 2, 3, 4]).build().unwrap();
 
-    println!("The value at index [{}] is now '{}'!", 2, vec[2]);
-    1
+        // let buffer = pro_que.create_buffer::<u32>
+        // let second_buffer = pro_que.create_buffer::<u32>().unwrap();
+
+        let kernel = pro_que.kernel_builder("cain")
+            .arg(&buffer)
+            .arg(&second_buffer)
+            .build().expect("error creating kernel");
+
+        kernel.enq();
+
+        let mut vec = vec![1u32; buffer.len()];
+        buffer.read(&mut vec).enq();
+
+        // println!("The value at index [{}] is now '{}'!", 0, vec[0]);
+        println!("{:?}", vec)
+    }
 }

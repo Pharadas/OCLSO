@@ -3,6 +3,7 @@ module AgentsGPU
 using StaticArrays
 
 abstract type OpenCLOperation end
+
 abstract type SimulationType end
 
 struct GenericSimulation <: SimulationType
@@ -115,6 +116,7 @@ const julia_opencl_type_map = Dict(
   :UInt64 => "ulong",
   :UInt16 => "ushort"
 )
+
 mutable struct Simulation
   sim_details::SimulationType
   sim_agent_extension::SimExtension
@@ -147,8 +149,94 @@ mutable struct UpdateParameterOperation <: OpenCLOperation
   opencl_code::String
 end
 
+function create_simulation_iteration()
+  return Iteration([])
+end
+
+# prepare an iteration for the GPU
+function execute_iteration(iteration::Iteration, sim_object::Simulation)
+  static_parameters = []
+  N::Int64 = length(sim_object.agent_parameters)
+
+  # no metemos los pointers directamente al array
+  # para evitar problemas por el garbage collector 
+  for parameter in sim_object.agent_parameters
+    # display(parameter)
+    push!(static_parameters, SVector{N}(julia_opencl_type_map[parameter[2]]))
+  end
+
+  static_parameters_p_arr = []
+
+  for static_param_vector in static_parameters
+    push!(static_parameters_p_arr, Ptr{UInt32}(pointer_from_objref(Ref(static_param_vector))))
+  end
+
+  static_parameters_pointers = SVector{N}(static_parameters_p_arr)
+
+  for i in iteration.operations
+    process_operation(i)
+  end
+
+  # create kernel function 
+  src = "
+__kernel void cain(~) {
+  ^
+}
+  "
+
+  input_buffers_opencl_string = ""
+
+  for (name, type) in sim_object.agent_parameters
+    input_buffers_opencl_string *= "__global " * julia_opencl_type_map[type] * "* " * string(name) * ", "
+  end
+
+  # Change the parameters passed to the function
+  match_index = match(r"\~", src).offset
+  src = src[1:match_index - 1] * input_buffers_opencl_string[1:end-2] * src[match_index + 1:length(src)]
+
+  # Change the function body
+  match_index = match(r"\^", src).offset
+  src = src[1:match_index - 1] * iteration.operations[1].opencl_code * src[match_index + 1:length(src)]
+
+  # finally, Finally, FINALLY call the rust library
+  display("sendin to rust")
+  ccall((:trivial, "target/release/libmain"), Nothing, (Cstring, Ptr{Ptr{UInt32}}, UInt32), Base.unsafe_convert(Cstring, src), Ptr{UInt32}(static_parameters_pointers[1]), convert(UInt32, length(sim_object.agent_parameters)))
+end
+
+function process_operation(operation::UpdateParameterOperation)
+  if (length(operation.query.opencl_function_string) == 0)
+    process_query(operation.query)
+  end
+
+  match_index = match(r"\^", operation.query.opencl_function_string).offset
+  query_string = operation.query.opencl_function_string
+  operation_string = query_string[1:match_index - 1] * string(operation.parameter) * "[get_global_id(0)] = " * string(operation.value) * query_string[match_index + 1:length(query_string)]
+  operation.opencl_code = operation_string
+end
+
+function process_query(query::Query)
+  query.opencl_function_string = "if ("
+
+  for part in query.definition
+    if part[1] == Parameter::QueryTypes
+      query.opencl_function_string *= part[2] * "[get_global_id(0)] "
+    else
+      query.opencl_function_string *= part[2] * " "
+    end
+  end
+
+  query.opencl_function_string *= ") {^;}"
+end
+
 function create_simulation_object(user_agent_values::Tuple, sim_type::SimulationType, number_of_agents::Int, number_of_iterations::Int)
-  simulation_struct = Simulation(sim_type, Generic, number_of_agents, user_agent_values, number_of_iterations, ())
+  base_definitions = read(open("./src/core/opencl_definitions/macro_definitions.cl", "r"), String)
+  name_type_map = Dict()
+
+  for (parameter, type) in user_agent_values
+    name_type_map[parameter] = type
+  end
+
+  simulation_struct = Simulation(sim_type, Generic, number_of_agents, name_type_map, number_of_iterations, (), base_definitions)
 
   if typeof(sim_type) == PhysicalSimulation
     simulation_struct.sim_agent_extension = Physics
@@ -157,34 +245,51 @@ function create_simulation_object(user_agent_values::Tuple, sim_type::Simulation
   return simulation_struct
 end
 
-function simulation_iteration()
+function update_parameter(simulation_iteration::Iteration, query::Query, parameter::Symbol, value)
+  new_operation = UpdateParameterOperation(query, parameter, value, "")
+  push!(simulation_iteration.operations, new_operation)
+  return simulation_iteration
+end
+
+function apply_force()
 
 end
 
-function is_within_range_of(query::Vector{Pair{QueryTypes, String}})
-  push!(query, Pair(Range::QueryTypes, "range")) # placeholder string
+function execute_queries(simulation_iteration::Iteration, queries::Query...)
+  push!(simulation_iteration.operations, Pair(ExecuteQuery, [queries]))
+
+  return simulation_iteration
 end
 
-function equals(query::Vector{Pair{QueryTypes, String}}, parameter::Symbol)
-  push!(query, Pair(Equality::QueryTypes, "=="))
-  push!(query, Pair(:Parameterr, string(parameter)))
+function is_within_range_of(query::Query)
+  push!(query.definition, Pair(Range::QueryTypes, "range")) # placeholder string
+  return query
 end
 
-function equals(query::Vector{Pair{QueryTypes, String}}, value)
-  push!(query, Pair(Equality::QueryTypes, "=="))
-  push!(query, Pair(Value::QueryTypes, string(value)))
+function equals(query::Query, parameter::Symbol)
+  push!(query.definition, Pair(Equality::QueryTypes, "=="))
+  push!(query.definition, Pair(Parameter::QueryTypes, string(parameter)))
+  return query
 end
 
-function equals(query::Vector{Pair{QueryTypes, String}})
-  push!(query, Pair(Equality::QueryTypes, "=="))
+function equals(query::Query, value)
+  push!(query.definition, Pair(Equality::QueryTypes, "=="))
+  push!(query.definition, Pair(Value::QueryTypes, string(value)))
+  return query
 end
 
-function parameter(query::Vector{Pair{QueryTypes, String}}, parameter::Symbol)
-  push!(query, Pair(Parameter::QueryTypes, string(parameter)))
+function equals(query::Query)
+  push!(query.definition, Pair(Equality::QueryTypes, "=="))
+  return query
+end
+
+function parameter(query::Query, parameter::Symbol)
+  push!(query.definition, Pair(Parameter::QueryTypes, string(parameter)))
+  return query
 end
 
 function query_maker()
-  return Vector{Pair{QueryTypes, String}}()
+  return Query([], "")
 end
 
 export create_simulation_object
@@ -192,8 +297,6 @@ export CLTypes
 export PhysicalSimulation
 
 export equals, parameter, query_maker
-
-export simulation_iteration
 
 export char
 export char2
@@ -257,6 +360,18 @@ export double8
 export double16
 
 export QueryTypes
+export Equality
+export Value
+export Parameter
+export Range
+
+export execute_iteration
+export execute_queries
+export update_parameter
+
+export process_query
+
+export create_simulation_iteration
 
 export Vec2
 

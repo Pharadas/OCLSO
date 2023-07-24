@@ -2,14 +2,17 @@ include("./src/AgentsGPU.jl")
 using .AgentsGPU
 using Chain
 
+N_agents = 2
+N_iterations = 10
+
 sim_template = PhysicalSimulation(2, true)
 
 agent_definition = ((:age, :UInt32), (:state, :UInt32))
-simulation_object = create_simulation_object(agent_definition, sim_template, 100, 1)
+simulation_object = create_simulation_object(agent_definition, sim_template, N_agents, N_iterations)
 
 # initialize our values
-age = rand(UInt32, 1)
-state = zeros(UInt32, 1)
+age = rand(UInt32, N_agents)
+state = rand(UInt32, N_agents)
 
 simulation_object.initial_values = (age, state)
 
@@ -18,8 +21,20 @@ age_query = @chain query_maker() begin
   equals(5)
 end
 
-x = age_query[1][2] * age_query[2][2] * age_query[3][2]
+simulation_iteration = @chain create_simulation_iteration() begin
+  update_parameter(age_query, :age, 6)
+end
 
-t = Base.unsafe_convert(Cstring, x)
+display(simulation_object.agent_parameters)
 
-output = ccall((:get_query, "target/release/libmain"), Nothing, (Cstring,), t)
+execute_iteration(simulation_iteration, simulation_object)
+
+# for val in age_query
+  # output = ccall((:filter_by_query, "target/release/libmain"), Nothing, (QueryTypes, Cstring,), val[1], Base.unsafe_convert(Cstring, val[2]))
+# end
+
+# iteration_object = @chain iteration_maker() begin
+#   update_parameter(age_query, :age, 6)
+# end
+
+# display(iteration_object)
