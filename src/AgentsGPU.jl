@@ -156,22 +156,25 @@ end
 # prepare an iteration for the GPU
 function execute_iteration(iteration::Iteration, sim_object::Simulation)
   static_parameters = []
-  N::Int64 = length(sim_object.agent_parameters)
 
-  # no metemos los pointers directamente al array
-  # para evitar problemas por el garbage collector 
-  for parameter in sim_object.agent_parameters
-    # display(parameter)
-    push!(static_parameters, SVector{N}(julia_opencl_type_map[parameter[2]]))
-  end
+  N::Int = sim_object.number_of_agents
 
-  static_parameters_p_arr = []
+  objeto_array = SVector{N}(sim_object.initial_values[1])
 
-  for static_param_vector in static_parameters
-    push!(static_parameters_p_arr, Ptr{UInt32}(pointer_from_objref(Ref(static_param_vector))))
-  end
+  # # no metemos los pointers directamente al array
+  # # para evitar problemas por el garbage collector 
+  # for parameter in sim_object.agent_parameters
+  #   # display(parameter)
+  #   push!(static_parameters, SVector{N}(julia_opencl_type_map[parameter[2]]))
+  # end
 
-  static_parameters_pointers = SVector{N}(static_parameters_p_arr)
+  # static_parameters_p_arr = []
+
+  # for static_param_vector in static_parameters
+  #   push!(static_parameters_p_arr, Ptr{i8}(pointer_from_objref(Ref(static_param_vector))))
+  # end
+
+  # static_parameters_pointers = SVector{N}(static_parameters_p_arr)
 
   for i in iteration.operations
     process_operation(i)
@@ -200,7 +203,7 @@ __kernel void cain(~) {
 
   # finally, Finally, FINALLY call the rust library
   display("sendin to rust")
-  ccall((:trivial, "target/release/libmain"), Nothing, (Cstring, Ptr{Ptr{UInt32}}, UInt32), Base.unsafe_convert(Cstring, src), Ptr{UInt32}(static_parameters_pointers[1]), convert(UInt32, length(sim_object.agent_parameters)))
+  # ccall((:trivial, "target/release/libmain"), Nothing, (Cstring, Ptr{Int8}, UInt32), Base.unsafe_convert(Cstring, src), pointer_from_objref(Ref(objeto_array)), convert(UInt32, sim_object.number_of_agents * sizeof(sim_object.initial_values[1][1])))
 end
 
 function process_operation(operation::UpdateParameterOperation)
