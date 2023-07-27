@@ -204,6 +204,7 @@ __kernel void cain(~) {
   # finally, Finally, FINALLY call the rust library
   display("sendin to rust")
   # ccall((:trivial, "target/release/libmain"), Nothing, (Cstring, Ptr{Int8}, UInt32), Base.unsafe_convert(Cstring, src), pointer_from_objref(Ref(objeto_array)), convert(UInt32, sim_object.number_of_agents * sizeof(sim_object.initial_values[1][1])))
+  ccall((:main, "src/OCLLib.so"), Nothing, ())
 end
 
 function process_operation(operation::UpdateParameterOperation)
