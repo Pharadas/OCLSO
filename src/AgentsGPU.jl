@@ -195,11 +195,11 @@ __kernel void cain(~) {
 
   # Change the parameters passed to the function
   match_index = match(r"\~", src).offset
-  src = src[1:match_index - 1] * input_buffers_opencl_string[1:end-2] * src[match_index + 1:length(src)]
+  src = src[1:match_index - 1] * input_buffers_opencl_string[1:end-2] * src[match_index + 1:end]
 
   # Change the function body
   match_index = match(r"\^", src).offset
-  src = src[1:match_index - 1] * iteration.operations[1].opencl_code * src[match_index + 1:length(src)]
+  src = src[1:match_index - 1] * iteration.operations[1].opencl_code * src[match_index + 1:end]
 
   # finally, Finally, FINALLY call the rust library
   display("sendin to rust")
