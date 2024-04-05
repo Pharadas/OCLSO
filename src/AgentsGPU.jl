@@ -161,6 +161,7 @@ function execute_iteration(iteration::Iteration, sim_object::Simulation)
 
   objeto_array = SVector{N}(sim_object.initial_values[1])
 
+  display(objeto_array)
   # # no metemos los pointers directamente al array
   # # para evitar problemas por el garbage collector 
   # for parameter in sim_object.agent_parameters
@@ -201,10 +202,12 @@ __kernel void cain(~) {
   match_index = match(r"\^", src).offset
   src = src[1:match_index - 1] * iteration.operations[1].opencl_code * src[match_index + 1:end]
 
+  print(src)
+
   # finally, Finally, FINALLY call the rust library
   display("sendin to rust")
   # ccall((:trivial, "target/release/libmain"), Nothing, (Cstring, Ptr{Int8}, UInt32), Base.unsafe_convert(Cstring, src), pointer_from_objref(Ref(objeto_array)), convert(UInt32, sim_object.number_of_agents * sizeof(sim_object.initial_values[1][1])))
-  ccall((:main, "src/OCLLib.so"), Nothing, ())
+  ccall((:gaming, "src/OCLLib.so"), Nothing, (Cstring, Ptr{Int8}, UInt32), Base.unsafe_convert(Cstring, src), pointer_from_objref(Ref(objeto_array)), convert(UInt32, sim_object.number_of_agents * sizeof(sim_object.initial_values[1][1])))
 end
 
 function process_operation(operation::UpdateParameterOperation)
