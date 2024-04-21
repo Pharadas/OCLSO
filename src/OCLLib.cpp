@@ -1,18 +1,18 @@
-#include "CL/cl.h"
+/* #include "CL/cl.h" */
 #include <iostream>
 #include <ostream>
 #include <string>
 #include <vector>
 
-#ifdef __APPLE__
-  #include <OpenCL/cl.hpp>
-#else
-  #include <CL/cl.hpp>
-#endif
+/* #ifdef __APPLE__ */
+/*   #include <OpenCL/cl.hpp> */
+/* #else */
+/*   #include <CL/cl.hpp> */
+/* #endif */
 
 extern "C" {
 
-void gaming(const char* src_code, char *x, unsigned long amount_of_agents) {
+int gaming(const char* src_code, char *x, unsigned long amount_of_agents, char *agents_starting_values) {
   for (int i = 0; i < amount_of_agents; i++) {
     std::cout << x[i] << " " << std::endl;
   }
@@ -22,43 +22,44 @@ void gaming(const char* src_code, char *x, unsigned long amount_of_agents) {
 
   std::string src_code_string = std::string(src_code);
 
-  // opencl boilerplate
-  std::vector<cl::Platform> all_platforms;
-  cl::Platform::get(&all_platforms);
+  /* // opencl boilerplate */
+  /* std::vector<cl::Platform> all_platforms; */
+  /* cl::Platform::get(&all_platforms); */
 
-  if (all_platforms.size() == 0) {
-    std::cout<<" No platforms found. Check OpenCL installation!\n";
-    exit(1);
-  }
+  /* if (all_platforms.size() == 0) { */
+  /*   std::cout<<" No platforms found. Check OpenCL installation!\n"; */
+  /*   exit(1); */
+  /* } */
 
-  cl::Platform default_platform=all_platforms[0];
-  std::cout << "Using platform: "<<default_platform.getInfo<CL_PLATFORM_NAME>()<<"\n";
+  /* cl::Platform default_platform=all_platforms[0]; */
+  /* std::cout << "Using platform: "<<default_platform.getInfo<CL_PLATFORM_NAME>()<<"\n"; */
 
-  std::vector<cl::Device> all_devices;
-  default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
-  if(all_devices.size()==0){
-    std::cout<<" No devices found. Check OpenCL installation!\n";
-    exit(1);
-  }
+  /* std::vector<cl::Device> all_devices; */
+  /* default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices); */
+  /* if(all_devices.size()==0){ */
+  /*   std::cout<<" No devices found. Check OpenCL installation!\n"; */
+  /*   exit(1); */
+  /* } */
 
-  for (int i = 0; i < all_devices.size(); i++) {
-    std::cout << std::to_string(i) << " " << all_devices[i].getInfo<CL_DEVICE_NAME>() << "\n";
-  }
+  /* for (int i = 0; i < all_devices.size(); i++) { */
+  /*   std::cout << std::to_string(i) << " " << all_devices[i].getInfo<CL_DEVICE_NAME>() << "\n"; */
+  /* } */
 
-  cl::Device default_device=all_devices[0];
-  std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
+  /* cl::Device default_device=all_devices[0]; */
+  /* std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n"; */
 
-  cl::Context context({default_device});
+  /* cl::Context context({default_device}); */
 
-  cl::Program::Sources sources;
+  /* cl::Program::Sources sources; */
 
-  sources.push_back({src_code_string.c_str(), src_code_string.length()});
+  /* sources.push_back({src_code_string.c_str(), src_code_string.length()}); */
 
-  cl::Program program(context, sources);
-  if (program.build({default_device}) != CL_SUCCESS) {
-    std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(default_device) << std::endl;
-    exit(1);
-  }
+  /* cl::Program program(context, sources); */
+  /* if (program.build({default_device}) != CL_SUCCESS) { */
+  /*   std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(default_device) << std::endl; */
+  /*   exit(1); */
+  /* } */
+  return 1;
 }
 
 int main() {
