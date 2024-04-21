@@ -1,6 +1,4 @@
-Manifest.toml
-
-
-# Added by cargo
-
-/target
+./CMakeCache.txt
+./Makefile
+./src/libOCL.so
+./CMakeFiles/*
