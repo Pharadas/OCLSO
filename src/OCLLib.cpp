@@ -1,4 +1,3 @@
-/* #include "CL/cl.h" */
 #include <cstdint>
 #include <iostream>
 #include <ostream>
@@ -7,108 +6,102 @@
 
 #include <cstdlib>
 
-/* #ifdef __APPLE__ */
-/*   #include <OpenCL/cl.hpp> */
-/* #else */
-/*   #include <CL/cl.hpp> */
-/* #endif */
+#ifdef __APPLE__
+  #include <OpenCL/cl.hpp>
+#else
+  #include <CL/cl.hpp>
+#endif
 
 extern "C" {
 
 // UPDATE FUNCTION SIGNATURE ON CHANGE IN src/AgentsGPU.jl function 'execute_iteration'
 uint8_t* gaming(uint8_t *x, unsigned int length) {
-  /* // opencl boilerplate */
-  /* std::vector<cl::Platform> all_platforms; */
-  /* cl::Platform::get(&all_platforms); */
+  // opencl boilerplate
+  std::vector<cl::Platform> all_platforms;
+  cl::Platform::get(&all_platforms);
 
-  /* if (all_platforms.size() == 0) { */
-  /*   std::cout<<" No platforms found. Check OpenCL installation!\n"; */
-  /*   exit(1); */
-  /* } */
+  if (all_platforms.size() == 0) {
+    std::cout<<" No platforms found. Check OpenCL installation!\n";
+    exit(1);
+  }
 
-  /* for (int i = 0; i < all_platforms.size(); i++) { */
-  /*   std::cout << all_platforms[i].getInfo<CL_PLATFORM_NAME>() << std::endl; */
-  /* } */
+  for (int i = 0; i < all_platforms.size(); i++) {
+    std::cout << all_platforms[i].getInfo<CL_PLATFORM_NAME>() << std::endl;
+  }
 
-  /* cl::Platform default_platform = all_platforms[1]; */
-  /* std::cout << "Using platform: "<<default_platform.getInfo<CL_PLATFORM_NAME>()<<"\n"; */
+  cl::Platform default_platform = all_platforms[1];
+  std::cout << "Using platform: "<<default_platform.getInfo<CL_PLATFORM_NAME>()<<"\n";
 
-  /* std::vector<cl::Device> all_devices; */
-  /* default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices); */
-  /* if(all_devices.size()==0){ */
-  /*   std::cout<<" No devices found. Check OpenCL installation!\n"; */
-  /*   exit(1); */
-  /* } */
+  std::vector<cl::Device> all_devices;
+  default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
+  if(all_devices.size()==0){
+    std::cout<<" No devices found. Check OpenCL installation!\n";
+    exit(1);
+  }
 
-  /* for (int i = 0; i < all_devices.size(); i++) { */
-  /*   std::cout << std::to_string(i) << " " << all_devices[i].getInfo<CL_DEVICE_NAME>() << "\n"; */
-  /* } */
+  for (int i = 0; i < all_devices.size(); i++) {
+    std::cout << std::to_string(i) << " " << all_devices[i].getInfo<CL_DEVICE_NAME>() << "\n";
+  }
 
-  /* cl::Device default_device=all_devices[0]; */
-  /* std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n"; */
+  cl::Device default_device=all_devices[0];
+  std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
 
-  /* // create the program that we want to execute on the device */
-  /* cl::Program::Sources sources; */
+  // create the program that we want to execute on the device
+  cl::Program::Sources sources;
 
-  /* // calculates for each element; C = A + B */
-  /* std::string kernel_code= */
-  /* "struct agente {" */
-  /* "  char age;" */
-  /* "  unsigned char state;" */
-  /* "};" */
-  /* "   void kernel simple_add(global struct agente *A, global struct agente *C) {" */
-  /* "       int i = get_global_id(0);" */
-  /* "       C[i].age = A[i].age;" */
-  /* "       C[i].state = A[i].state;" */
-  /* "   }"; */
+  // calculates for each element; C = A + B
+  std::string kernel_code=
+  "struct agente {"
+  "  float age;"
+  "  float state;"
+  "};"
+  "   void kernel simple_add(global struct agente *A, global struct agente *C) {"
+  "       int i = get_global_id(0);"
+  "       C[i].age = A[i].age + 1;"
+  "       C[i].state = A[i].state + 1;"
+  "   }";
 
-  /* sources.push_back({kernel_code.c_str(), kernel_code.length()}); */
+  sources.push_back({kernel_code.c_str(), kernel_code.length()});
 
-  /* cl::Context context({default_device}); */
+  cl::Context context({default_device});
 
-  /* cl::Program program(context, sources); */
-  /* if (program.build({default_device}) != CL_SUCCESS) { */
-  /*   std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(default_device) << std::endl; */
-  /*   exit(1); */
-  /* } */
+  cl::Program program(context, sources);
+  if (program.build({default_device}) != CL_SUCCESS) {
+    std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(default_device) << std::endl;
+    exit(1);
+  }
 
-  /* // create buffers on device (allocate space on GPU) */
-  /* cl::Buffer buffer_A(context, CL_MEM_READ_WRITE, sizeof(int8_t) * length); */
-  /* cl::Buffer buffer_C(context, CL_MEM_READ_WRITE, sizeof(int8_t) * length); */
+  // create buffers on device (allocate space on GPU)
+  cl::Buffer buffer_A(context, CL_MEM_READ_WRITE, sizeof(int8_t) * length);
+  cl::Buffer buffer_C(context, CL_MEM_READ_WRITE, sizeof(int8_t) * length);
 
-  /* // create a queue (a queue of commands that the GPU will execute) */
-  /* cl::CommandQueue queue(context, default_device); */
+  // create a queue (a queue of commands that the GPU will execute)
+  cl::CommandQueue queue(context, default_device);
 
-  /* // push write commands to queue */
-  /* queue.enqueueWriteBuffer(buffer_A, CL_TRUE, 0, sizeof(int8_t)*length, x); */
+  // push write commands to queue
+  queue.enqueueWriteBuffer(buffer_A, CL_TRUE, 0, sizeof(int8_t)*length, x);
 
-  /* cl::Kernel simple_add(program, "simple_add"); */
-  /* simple_add.setArg(0, buffer_A); */
-  /* simple_add.setArg(1, buffer_C); */
-  /* queue.enqueueNDRangeKernel(simple_add,cl::NullRange,cl::NDRange(100),cl::NullRange); */
-  /* queue.finish(); */
+  cl::Kernel simple_add(program, "simple_add");
+  simple_add.setArg(0, buffer_A);
+  simple_add.setArg(1, buffer_C);
+  queue.enqueueNDRangeKernel(simple_add,cl::NullRange,cl::NDRange(100),cl::NullRange);
+  queue.finish();
 
-  std::cout << "address " << static_cast<void*>(x) << std::endl;
+  std::cout << "    address, C " << static_cast<void*>(x) << std::endl;
 
-  auto first_value = (uint8_t*)malloc(sizeof(uint8_t));
-  /* memcpy(first_value, x, sizeof(uint8_t)); */
-
-  std::cout << "gaming " << *first_value - '0' << std::endl;
-
-  for (int i = 0; i < length; i += 2) {
-    std::cout << "'" << x[i] - '0' << "' ";
-    std::cout << "'" << (uint8_t)x[i + 1] - '0' << "'" << std::endl;
+  for (int i = 0; i < length; i++) {
+    std::cout << "'" << (x[i] + 48) - '0' << "' ";
   }
 
   std::cout << "==========================" << std::endl;
 
-  // recordar liberar la memoria en julia porque no lo vamos a hacer en C
+  // recordar tomar ownership de la memoria en julia porque no lo vamos a hacer en C
   uint8_t* C = new uint8_t[length];
   // read result from GPU to here
-  /* queue.enqueueReadBuffer(buffer_C, CL_TRUE, 0, sizeof(uint8_t)*length, C); */
+  queue.enqueueReadBuffer(buffer_C, CL_TRUE, 0, length, C);
 
   for (int i = 0; i < length; i++) {
-    std::cout << "'" << C[i] - '0' << "'" << std::endl;
+    std::cout << "'" << C[i] - '0' << "' ";
   }
 
   int f;

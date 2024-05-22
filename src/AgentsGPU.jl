@@ -119,8 +119,8 @@ const julia_opencl_type_map = Dict(
 )
 
 struct agent_def
-  age::Int8
-  state::UInt8
+  age::Float32
+  state::Float32
 end
 
 mutable struct Simulation
@@ -167,8 +167,6 @@ function execute_iteration(iteration::Iteration, sim_object::Simulation, )
 
   N::Int = sim_object.number_of_agents
 
-  objeto_array = SVector{N}(sim_object.initial_values[1])
-
   # # no metemos los pointers directamente al array
   # # para evitar problemas por el garbage collector 
   # for parameter in sim_object.agent_parameters
@@ -209,32 +207,26 @@ __kernel void cain(~) {
   match_index = match(r"\^", src).offset
   src = src[1:match_index - 1] * iteration.operations[1].opencl_code * src[match_index + 1:end]
 
-  agents_list = SVector{3, agent_def}(agent_def(1, 0), agent_def(1, 0), agent_def(1, 0))
+  agents_list = [agent_def(10, 0), agent_def(10, 0), agent_def(10, 0), agent_def(10, 0)]
+  println("tamano en bytes de agents_list: ", sizeof(agents_list))
 
-  println("agent def isbits ", isbits(agents_list))
-  println(agents_list)
-
-  # for i in 1:3
-  #   agents_list[i] = agent_def(1, 0)
-  # end
-
-  # arr = reinterpret(UInt8, agents_list)
-  # println("new arr ", arr)
   # buff = IOBuffer(arr)
   # println("buffer is ", buff.data)
 
-  println("original list ", agents_list)
+  # # println("original list ", agents_list)
 
-  # C function signature (update on change)
-  # int gaming(const char* src_code, char *x, unsigned long amount_of_agents, char *agents_starting_values)
+  # # # C function signature (update on change)
+  # # # int gaming(const char* src_code, char *x, unsigned long amount_of_agents, char *agents_starting_values)
 
-  print("address, julia ", pointer_from_objref(Ref(agents_list)))
-  # la longitud es 6 porque por ahora solo tenemos dos variables de tamano de 8bits
-  l_p = ccall((:gaming, "src/OCLLib.so"), Ptr{agent_def}, (Ptr{UInt8}, UInt32), pointer_from_objref(Ref(agents_list)), 6)
-  # println("type of returned ", typeof(l_p))
-  # seekstart(l_p); 
-  # println("unpacked: ", unpack(l_p, agent_def))
-  print("ccall returned ", unsafe_wrap(Array{agent_def}, l_p, 3, own=true))
+  # print("GAMING GAMING GAMING", pointer(buff.data))
+
+  # print("address, julia ", pointer(arr))
+  # # # # la longitud es 6 porque por ahora solo tenemos dos variables de tamano de 8bits
+  l_p = ccall((:gaming, "src/OCLLib.so"), Ptr{agent_def}, (Ptr{agent_def}, UInt32), agents_list, sizeof(agents_list))
+  # # # println("type of returned ", typeof(l_p))
+  # # # seekstart(l_p); 
+  # # # println("unpacked: ", unpack(l_p, agent_def))
+  print("ccall returned ", unsafe_wrap(Array{agent_def}, l_p, 4, own=true))
   return agents_list
 end
 

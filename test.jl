@@ -2,7 +2,7 @@ include("./src/AgentsGPU.jl")
 using .AgentsGPU
 using Chain
 
-N_agents = 3
+N_agents = 4
 N_iterations = 10
 
 sim_template = PhysicalSimulation(2, true)
@@ -21,8 +21,8 @@ simulation_object = create_simulation_object(agent_definition, sim_template, N_a
 # age = rand(Int8, N_agents)
 # state = rand(UInt8, N_agents)
 
-age = [0, 0, 0]
-state = [0, 0, 0]
+age = [0, 0, 0, 0]
+state = [0, 0, 0, 0]
 
 for i in 1:N_agents
   print(age[i], " ", state[i], "\n")
